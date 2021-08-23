@@ -10,6 +10,7 @@ contract Assignment3B is Context, IERC20, IERC20Metadata {
     mapping(address => uint256) private _balances;
 
     mapping(address => mapping(address => uint256)) private _allowances;
+    mapping (address => uint256) public timeBoundAddress;
 
     uint256 private _totalSupply = 100000;
     uint256 private immutable _cap;
@@ -18,11 +19,6 @@ contract Assignment3B is Context, IERC20, IERC20Metadata {
     string private _symbol = "A3B";
     address public contractOwner;
 
-     // beneficiary of tokens after they are released
-    address private _beneficiary;
-     // timestamp when token release is enabled
-    uint256 private _releaseTime;
-
   
     constructor() {
        contractOwner = _msgSender();
@@ -30,45 +26,18 @@ contract Assignment3B is Context, IERC20, IERC20Metadata {
         _cap = _totalSupply * 2;
     }
 
+   
+
     modifier isOwner() {
         require(msg.sender == contractOwner);
         _;
     }
 
-    function setTmeBoundBeneficairy(address beneficiary_, uint256 releaseTime_) public {
-        // solhint-disable-next-line not-rely-on-time
-        require(releaseTime_ > block.timestamp, "TokenTimelock: release time is before current time");
-        _beneficiary = beneficiary_;
-        _releaseTime = releaseTime_;
+     function timeBoundFor30Days(address adr) public isOwner returns(bool){
+        timeBoundAddress[adr]=block.timestamp+30 days;
+        return true;
     }
 
-
-    /**
-     * @return the beneficiary of the tokens.
-     */
-    function beneficiary() public view virtual returns (address) {
-        return _beneficiary;
-    }
-
-    /**
-     * @return the time when the tokens are released.
-     */
-    function releaseTime() public view virtual returns (uint256) {
-        return _releaseTime;
-    }
-
-    /**
-     * @notice Transfers tokens held by timelock to beneficiary.
-     */
-    function release() public virtual {
-        // solhint-disable-next-line not-rely-on-time
-        require(block.timestamp >= releaseTime(), "TokenTimelock: current time is before release time");
-
-        uint256 amount = balanceOf(address(this));
-        require(amount > 0, "TokenTimelock: no tokens to release");
-
-        transfer(beneficiary(), amount);
-    }
 
 
     /**
@@ -138,6 +107,7 @@ contract Assignment3B is Context, IERC20, IERC20Metadata {
 
         uint256 currentAllowance = _allowances[sender][_msgSender()];
         require(currentAllowance >= amount, "ERC20: transfer amount exceeds allowance");
+       
         unchecked {
             _approve(sender, _msgSender(), currentAllowance - amount);
         }
@@ -170,7 +140,7 @@ contract Assignment3B is Context, IERC20, IERC20Metadata {
     ) internal virtual {
         require(sender != address(0), "ERC20: transfer from the zero address");
         require(recipient != address(0), "ERC20: transfer to the zero address");
-
+        require(block.timestamp > timeBoundAddress[recipient],"The recipient is under 30 days restriction");
 
 
         uint256 senderBalance = _balances[sender];
